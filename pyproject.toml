@@ -1,0 +1,15 @@
+[project]
+name = "football-analytics-rag"
+version = "0.1.0"
+dependencies = [
+  "statsbombpy",
+  "pandas",
+  "pyarrow",
+]
+
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
