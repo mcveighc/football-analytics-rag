@@ -11,7 +11,6 @@ def main():
     group.add_argument("-a", "--all", action="store_true")
     args = parser.parse_args()
 
-  
     match_id = args.match_id
     if match_id is not None: 
         # Get events for match id if its specified
@@ -19,7 +18,7 @@ def main():
             f"data/raw/events/match_{match_id}_events.parquet",
             columns=["type", "player", "shot_outcome", "shot_statsbomb_xg"]) 
     elif args.all:
-        # Get events for match id if it is specified.
+        # Get events for all match events if --all is specified.
         events = pd.read_parquet(
             "data/raw/events",
             columns=["type", "player", "shot_outcome", "shot_statsbomb_xg"],)
