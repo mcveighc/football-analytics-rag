@@ -1,13 +1,18 @@
+from argparse import ArgumentParser
 import pandas as pd
 
 
 def main():
-    goals = pd.read_parquet(
-        "data/raw/match_3913082_events.parquet",
-        columns=["type", "player", "shot_outcome", "shot_statsbomb_xg"],
-    );
+    parser = ArgumentParser()
+    parser.add_argument("-m", "--match-id", type=int, default=3913082)
+    args = parser.parse_args()
 
-    shots = goals[goals["type"] == "Shot"]
+    events = pd.read_parquet(
+        f"data/raw/events/match_{args.match_id}_events.parquet",
+        columns=["type", "player", "shot_outcome", "shot_statsbomb_xg"],
+    )
+
+    shots = events[events["type"] == "Shot"]
 
     summary = (
         shots.groupby("player", dropna=True)
