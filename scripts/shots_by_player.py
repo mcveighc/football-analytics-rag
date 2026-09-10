@@ -1,16 +1,28 @@
 from argparse import ArgumentParser
+from email import parser
+from tokenize import group
 import pandas as pd
 
 
 def main():
     parser = ArgumentParser()
-    parser.add_argument("-m", "--match-id", type=int, default=3913082)
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("-m", "--match-id", type=int)
+    group.add_argument("-a", "--all", action="store_true")
     args = parser.parse_args()
 
-    events = pd.read_parquet(
-        f"data/raw/events/match_{args.match_id}_events.parquet",
-        columns=["type", "player", "shot_outcome", "shot_statsbomb_xg"],
-    )
+  
+    match_id = args.match_id
+    if match_id is not None: 
+        # Get events for match id if its specified
+        events = pd.read_parquet(
+            f"data/raw/events/match_{match_id}_events.parquet",
+            columns=["type", "player", "shot_outcome", "shot_statsbomb_xg"]) 
+    elif args.all:
+        # Get events for match id if it is specified.
+        events = pd.read_parquet(
+            "data/raw/events",
+            columns=["type", "player", "shot_outcome", "shot_statsbomb_xg"],)
 
     shots = events[events["type"] == "Shot"]
 
