@@ -5,6 +5,7 @@ dependencies = [
   "statsbombpy",
   "pandas",
   "pyarrow",
+  "duckdb:
 ]
 
 [build-system]

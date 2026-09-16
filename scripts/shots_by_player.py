@@ -1,5 +1,6 @@
 from argparse import ArgumentParser
-import pandas as pd
+from football_rag.ingest.statsbomb import validate_columns, validate_files
+import duckdb as db
 
 
 def main():
@@ -10,31 +11,27 @@ def main():
     args = parser.parse_args()
 
     match_id = args.match_id
-    if match_id is not None: 
-        # Get events for match id if its specified
-        events = pd.read_parquet(
-            f"data/raw/events/match_{match_id}_events.parquet",
-            columns=["type", "player", "shot_outcome", "shot_statsbomb_xg"]) 
-    elif args.all:
-        # Get events for all match events if --all is specified.
-        events = pd.read_parquet(
-            "data/raw/events",
-            columns=["type", "player", "shot_outcome", "shot_statsbomb_xg"],)
+    
+    event_dir = "data/raw/events"
+    parquet_path = f"{event_dir}/match_{match_id}_events.parquet" if match_id is not None else f"{event_dir}/match_*_events.parquet"
 
-    shots = events[events["type"] == "Shot"]
 
-    summary = (
-        shots.groupby("player", dropna=True)
-        .agg(
-            shots=("type", "count"),
-            goals=("shot_outcome", lambda x: (x == "Goal").sum()),
-            total_xg=("shot_statsbomb_xg", "sum"),
-        )
-        .reset_index()
-        .sort_values(["goals", "total_xg", "shots"], ascending=False)
-    )
+    validate_files(parquet_path, {"player", "shot_outcome", "shot_statsbomb_xg", "type"})
 
-    print(summary)
+    summary = db.sql(f"""
+        SELECT 
+            player, 
+            COUNT(*) as shots,
+            COUNT_IF (shot_outcome = 'Goal') as goals,
+            SUM(shot_statsbomb_xg) as total_xg
+        FROM read_parquet('{parquet_path}')
+        WHERE type = 'Shot' AND player IS NOT NULL
+        GROUP BY player
+        ORDER BY goals DESC, total_xg DESC, shots DESC
+    """)
+    
+    print(summary.df())
+
 
 if __name__ == "__main__":
     main()
