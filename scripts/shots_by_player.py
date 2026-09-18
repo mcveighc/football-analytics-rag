@@ -14,8 +14,8 @@ def main():
     event_dir = "data/raw/events"
     parquet_path = f"{event_dir}/match_{match_id}_events.parquet" if match_id is not None else f"{event_dir}/match_*_events.parquet"
     
-    summary = shots_by_player.shots_by_player(parquet_path)
-    print(summary.df())
+    summary = shots_by_player(parquet_path)
+    print(summary)
 
 if __name__ == "__main__":
     main()

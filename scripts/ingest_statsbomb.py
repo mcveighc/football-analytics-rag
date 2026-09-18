@@ -4,7 +4,7 @@ from pathlib import Path
 
 def main():
     parser = ArgumentParser()
-    parser.add_argument("-l", "--limit", type=int, default=1)
+    parser.add_argument("-l", "--limit", type=int)
     args = parser.parse_args()
 
     # Ingest matches for competition and season
@@ -14,7 +14,7 @@ def main():
 
     # Ingest events for each match
     events_dir = ensure_data_dir("data/raw/events")
-    for match_id in matches["match_id"][:args.limit]:
+    for match_id in matches["match_id"][:args.limit or len(matches)]:
         print(f"Fetching events for match {match_id}")
         match_events = load_events(match_id=match_id)
         match_events.to_parquet(events_dir / f"match_{match_id}_events.parquet")
