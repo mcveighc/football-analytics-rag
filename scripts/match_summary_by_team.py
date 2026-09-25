@@ -8,8 +8,9 @@ def main():
     args = parser.parse_args()
 
     match_id = args.match_id
-    parquet_path = f"data/raw/events/match_{match_id}_events.parquet"    
-    summary = team_match_summary(parquet_path)
+    matches_parquet_path = "data/raw/wsl_matches.parquet"
+    match_event_parquet_path = f"data/raw/events/match_{match_id}_events.parquet"    
+    summary = team_match_summary(matches_parquet_path, match_event_parquet_path)
     
     print(summary)
 
