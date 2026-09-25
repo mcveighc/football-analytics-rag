@@ -2,6 +2,7 @@ from football_rag.analytics.team import match_summary
 import pandas as pd
 import pytest
 
+
 def test_match_summary_joins_correct_match(tmp_path):
     matches = pd.DataFrame([
         {"match_id": 1, "match_date": "2023-01-01",
@@ -40,7 +41,8 @@ def test_match_summary_joins_correct_match(tmp_path):
         assert result.loc[team, "shots"] == 1
         assert result.loc[team, "goals"] == 1
         assert result.loc[team, "total_xg"] == pytest.approx(expected_xg)
-        
+
+
 def test_match_summary_counts_own_goals_as_goals(tmp_path):
     # Given
     test_match_data = [
@@ -162,8 +164,8 @@ def test_match_summary_includes_expected_opponent(tmp_path):
         # Team B
         {"match_id": 1, "type": "Shot", "shot_outcome": "Goal",
          "shot_statsbomb_xg": 0.7, "team": "Team B"},
-
     ]
+
     matches_parquet_path = tmp_path / "matches.parquet"
     pd.DataFrame(test_match_data).to_parquet(matches_parquet_path)
 
@@ -179,3 +181,46 @@ def test_match_summary_includes_expected_opponent(tmp_path):
     assert result.loc["Team A", "opponent"] == "Team B"
     assert result.loc["Team B", "opponent"] == "Team A"
 
+
+def test_match_summary_handles_multiple_matches(tmp_path):
+    matches = pd.DataFrame([
+        {"match_id": 1, "match_date": "2023-01-01",
+         "home_team": "Team A", "away_team": "Team B"},
+        
+        {"match_id": 2, "match_date": "2023-01-08",
+        "home_team": "Team C", "away_team": "Team A"},
+    ])
+
+    match_events_one = pd.DataFrame([
+        # Team A
+        {"match_id": 1, "type": "Shot", "shot_outcome": "Goal",
+         "shot_statsbomb_xg": 0.5, "team": "Team A"},
+
+        # Team B
+        {"match_id": 1, "type": "Shot", "shot_outcome": "Goal",
+        "shot_statsbomb_xg": 0.7, "team": "Team B"},
+    ])
+
+    match_events_two = pd.DataFrame([
+        # Team A
+        {"match_id": 2, "type": "Shot", "shot_outcome": "Goal",
+         "shot_statsbomb_xg": 0.5, "team": "Team A"},
+        {"match_id": 2, "type": "Shot", "shot_outcome": "Goal",
+         "shot_statsbomb_xg": 0.5, "team": "Team A"},
+
+        # Team C
+        {"match_id": 2, "type": "Shot", "shot_outcome": "Goal",
+        "shot_statsbomb_xg": 0.7, "team": "Team C"},
+    ])
+
+    matches_path = tmp_path / "matches.parquet"
+    matches.to_parquet(matches_path)
+
+    match_events_one.to_parquet(tmp_path / "events-one.parquet")
+    match_events_two.to_parquet(tmp_path / "events-two.parquet")
+
+    result = match_summary(str(matches_path), str(tmp_path / "events-*.parquet"))
+    result = result.set_index(["match_id", "team"])
+
+    assert result.loc[(1, "Team A"), "shots"] == 1
+    assert result.loc[(2, "Team A"), "shots"] == 2

@@ -29,5 +29,5 @@ def match_summary(matches_parquet_path: str, match_event_parquet_path: str) -> p
             FROM read_parquet('{match_event_parquet_path}') AS events
             JOIN read_parquet('{matches_parquet_path}') AS matches ON events.match_id = matches.match_id
             Group BY events.match_id, matches.match_date, events.team, matches.home_team, matches.away_team
-            ORDER BY goals DESC, total_xg DESC, shots DESC
+            ORDER BY matches.match_date, goals DESC, total_xg DESC, shots DESC
         """).df()
