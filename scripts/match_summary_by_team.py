@@ -1,7 +1,6 @@
 from argparse import ArgumentParser
 from football_rag.analytics.team import match_summary as team_match_summary
 
-
 def main():
     parser = ArgumentParser()
     parser.add_argument("-m", "--match-id", type=int, required=False)
