@@ -2,7 +2,7 @@
 
 A hands-on learning project combining football event-data analytics, retrieval augmented generation (RAG), and agentic workflows in one Python repository.
 
-The project currently turns StatsBomb open data into queryable Parquet files, reusable DuckDB analytics, and factual Markdown match reports. The next milestone is local document retrieval; embeddings, LLM answers, and agent routing are not implemented yet.
+The project currently turns StatsBomb open data into queryable Parquet files, reusable DuckDB analytics, and factual Markdown match reports, with local keyword search over reports and knowledge notes. The next milestone is a minimal RAG flow that generates answers with source references; embeddings, LLM answers, and agent routing are not implemented yet.
 
 ## Current Status
 
@@ -14,6 +14,9 @@ The project currently turns StatsBomb open data into queryable Parquet files, re
 - Markdown reports for individual matches, with home-first ordering, match identification, an event-derived score, and xG formatted to two decimal places.
 - Synthetic-data tests covering team analytics, own goals, zero-shot teams, metadata joins, multiple matches, and report formatting.
 - Knowledge notes explaining xG, goals, and how to interpret match summaries.
+- Keyword retrieval that ranks Markdown documents by distinct shared words and returns full text, source path, and score.
+- A search CLI with a configurable result limit and document previews.
+- Retrieval tests covering whole-word matching, repeated words, partial query matches, multiple sources, score ordering, result limits, and no matches.
 
 ## Architecture
 
@@ -26,11 +29,12 @@ StatsBomb open data
   -> Markdown match reports
 
 Knowledge notes + generated reports
-  -> local keyword retrieval (next milestone)
-  -> richer retrieval and grounded answers (planned)
+  -> local keyword retrieval
+  -> labelled document context (planned)
+  -> LLM answers with source references (next milestone)
 ```
 
-Structured event data belongs in the analytics layer. Exact calculations, rankings, and cross-match comparisons use SQL. Text retrieval will supply metric explanations and match context.
+Structured event data belongs in the analytics layer. Exact calculations, rankings, and cross-match comparisons use SQL. Text retrieval supplies metric explanations and match context. The planned LLM flow will explain retrieved material and quote reported values; new numeric calculations remain in the analytics layer.
 
 CLI scripts connect the steps. Analytics functions return DataFrames, report functions turn supplied summaries into text, and scripts handle arguments, printing, and file output.
 
@@ -54,15 +58,18 @@ football-analytics-rag/
     shots_by_player.py
     match_summary_by_team.py
     match_report.py
+    search.py
   src/football_rag/
     ingest/statsbomb.py
     analytics/shots.py
     analytics/team.py
     validate/parquet.py
     reports/match_report.py
+    search/search.py
   test/football_rag/
     analytics/test_team.py
     reports/test_match_report.py
+    search/test_search.py
   pyproject.toml
   README.md
 ```
@@ -136,6 +143,15 @@ Match ID: 3913082
 
 Raw extracts and generated reports live under the git-ignored `data/` directory. Knowledge notes are versioned under `docs/knowledge/`.
 
+### Search documents
+
+```sh
+python scripts/search.py --query "expected goals"
+python scripts/search.py --query "Manchester United" --limit 5
+```
+
+Search reads Markdown files directly within `data/reports/` and `docs/knowledge/`. The default result limit is three. Each result prints its source path, score, and a preview of up to 200 characters, with an ellipsis when truncated. Queries with no matching documents produce no output.
+
 ## Tests
 
 Run the full suite from the repository root:
@@ -144,7 +160,7 @@ Run the full suite from the repository root:
 python -m pytest
 ```
 
-Use `python -m pytest -v` to see individual test names. Tests use synthetic data and temporary Parquet files rather than downloading StatsBomb data.
+Use `python -m pytest -v` to see individual test names. Tests use synthetic data, temporary Parquet files, and temporary Markdown documents rather than downloading StatsBomb data.
 
 ## Metric Definitions and Current Assumptions
 
@@ -162,24 +178,32 @@ Read the project notes for more detail:
 - [Goals and own goals](docs/knowledge/goals.md)
 - [Understanding match summaries](docs/knowledge/match-summaries.md)
 
-## Next Milestone: Local Document Retrieval
+## Local Document Retrieval
 
-Build a small keyword search over `docs/knowledge/` and `data/reports/` before introducing embeddings or an LLM.
+The keyword search treats each Markdown document as one searchable unit. It lowercases the query and document text, extracts whole-word tokens, and scores each document by the number of distinct words shared with the query. Repeated words do not increase the score; `goal` does not match `goalkeeper`.
 
-The first version will:
+`search_documents()` excludes zero-score documents, sorts by descending score, and applies the result limit. Each result contains:
 
-1. Load Markdown documents with their source paths.
-2. Treat each short document as one searchable unit.
-3. Rank documents by the number of distinct query words they contain.
-4. Exclude zero-score documents and return a limited list of results containing text, source, and score.
-5. Test metric queries, team-name queries, and queries with no matches.
+- `text`: full document content.
+- `source_path`: the document's `Path`.
+- `score`: the number of distinct shared words, not a confidence estimate.
 
-The initial collection will contain the three knowledge notes and a few generated match reports. Chunking and more advanced ranking can follow once the basic retrieval behaviour is understood.
+**Known limitation:** equally scored documents retain their discovery order. With the default source order, reports are searched before knowledge notes, so tied reports can push explanatory notes below the result limit. There is no semantic matching, chunking, or preference for explanatory content yet.
+
+## Next Milestone: Minimal RAG Flow
+
+Build the flow in small steps using the existing retrieval results:
+
+1. Format retrieved documents into context labelled `[1]`, `[2]`, and so on, preserving their order, full text, and source paths. Keep retrieval scores out of the context. Start with a pure `format_context(results: list[dict]) -> str` function in `src/football_rag/rag/context.py`, returning an empty string for no results.
+2. Pass the question and labelled context to an LLM with instructions to answer from the supplied evidence, cite document labels, and acknowledge missing evidence.
+3. Connect retrieval and generation through a small CLI that returns the answer and maps source labels to document paths. Handle empty retrieval without calling the LLM.
+4. Check supported answers, insufficient evidence, and whether citations refer to documents that support the claims.
+
+This flow is planned, not implemented. Exact calculations, rankings, and cross-match comparisons stay in DuckDB. An LLM cannot compensate for relevant evidence omitted by retrieval, so the known ranking limitation remains part of evaluation.
 
 ## Longer-Term Direction
 
 - Evaluate retrieval quality and add embeddings where useful.
-- Generate answers grounded in retrieved documents, with source references.
 - Expose analytics and retrieval as tools for an agent.
 - Let the agent choose analytics, retrieval, or both, combining numeric results with explanations.
 - Add evaluation questions with known answers to check accuracy.
