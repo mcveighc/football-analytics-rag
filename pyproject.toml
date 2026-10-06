@@ -6,7 +6,10 @@ dependencies = [
   "pandas",
   "pyarrow",
   "duckdb",
-  "pytest"
+  "pytest",
+  "openai",
+  "pytest-mock"
+
 ]
 
 [build-system]
